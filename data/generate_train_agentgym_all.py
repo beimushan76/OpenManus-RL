@@ -256,9 +256,14 @@ def save_environment_data(train_env_groups, eval_item_ids, train_id_to_sample, o
         else:
             print(f"Warning: No test samples found for environment '{env_name}'")
 
-def main():
-    """
-    Main function to process and save AgentGym datasets by environment.
+def main(output_base_dir: str = './'):
+    """Process AgentGym datasets and save them to ``output_base_dir``.
+
+    Parameters
+    ----------
+    output_base_dir: str, optional
+        Directory to store generated ``train.parquet``, ``val.parquet`` and
+        ``test.parquet`` files for each environment. Default ``./``.
     """
     # Set random seed for reproducibility
     random.seed(42)
@@ -305,9 +310,18 @@ def main():
     
     # Save environment data
     print("\nSaving environment data...")
-    save_environment_data(train_env_groups, eval_env_item_ids, train_id_to_sample, output_base_dir='./')
-    
+    save_environment_data(train_env_groups, eval_env_item_ids, train_id_to_sample, output_base_dir=output_base_dir)
+
     print("Processing complete!")
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__":    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--output_dir',
+        default='./',
+        help='Base directory for generated environment datasets'
+    )
+    args = parser.parse_args()
+
+    main(args.output_dir)

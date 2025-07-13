@@ -62,6 +62,24 @@ from verl.utils.tracking import ValidationGenerationsLogger
 
 WorkerType = Type[Worker]
 
+# List of known AgentGym environments for OpenManus-RL integration
+KNOWN_AGENTGYM_ENVS = [
+    "webshop",
+    "webarena",
+    "maze",
+    "wordle",
+    "alfworld",
+    "sciworld",
+    "babyai",
+    "textcraft",
+    "weather",
+    "movie",
+    "academia",
+    "todo",
+    "sheet",
+    "sqlgym",
+]
+
 
 class Role(Enum):
     """
@@ -1049,6 +1067,40 @@ class RayPPOTrainer:
             config=OmegaConf.to_container(self.config, resolve=True),
         )
 
+        # Initialize OpenManusAgent if training on an AgentGym environment
+        generation_manager = None
+        if getattr(self.config, "data", None) is not None and getattr(self.config.data, "env_name", None) in KNOWN_AGENTGYM_ENVS:
+            try:
+                from openmanus_rl.llm_agent.openmanus import OpenManusAgent, AgentConfig
+
+                agent_config = AgentConfig(
+                    max_turns=self.config.max_turns,
+                    max_start_length=self.config.data.max_start_length,
+                    max_prompt_length=self.config.data.max_prompt_length,
+                    max_response_length=self.config.data.max_response_length,
+                    max_obs_length=self.config.data.max_obs_length,
+                    num_gpus=self.config.trainer.n_gpus_per_node,
+                    env_name=self.config.data.env_name,
+                    env_ports=self.config.data.env_ports,
+                    env_server_base=self.config.data.env_server_base,
+                    react_format=self.config.data.get("react_format", True),
+                    env_data_len=self.config.data.get("env_data_len", 200),
+                    rollout_strategy=self.config.data.get("rollout_strategy", "StandardReAct"),
+                    max_workers=self.config.data.get("max_workers", 10),
+                    algorithm_config=self.config.algorithm,
+                )
+
+                generation_manager = OpenManusAgent(
+                    tokenizer=self.tokenizer,
+                    actor_rollout_wg=self.actor_rollout_wg,
+                    config=agent_config,
+                    is_validation=False,
+                    logger=logger,
+                )
+            except Exception as e:  # pragma: no cover - optional dependency
+                print(f"[Trainer.fit] Failed to initialize OpenManusAgent: {e}")
+
+
         self.global_steps = 0
 
         # load checkpoint before doing anything
@@ -1131,14 +1183,48 @@ class RayPPOTrainer:
                 with marked_timer("step", timing_raw):
                     # generate a batch
                     with marked_timer("gen", timing_raw, color="red"):
-                        if not self.async_rollout_mode:
+                        if generation_manager is not None:
+                            output_dir = self.config.trainer.get("rollout_data_dir", None)
+                            gen_batch_output = generation_manager.run_llm_loop(
+                                gen_batch=gen_batch,
+                                output_dir=output_dir,
+                                global_steps=self.global_steps,
+                            )
+                            # compute log probability for generated sequences
+                            with torch.no_grad():
+                                if "input_ids" in gen_batch_output.batch:
+                                    actor_world = self.actor_rollout_wg.world_size
+                                    padded_for_logp, pad_sz = pad_dataproto_to_divisor(
+                                        gen_batch_output, actor_world
+                                    )
+                                    padded_for_logp.meta_info.setdefault(
+                                        "micro_batch_size",
+                                        self.config.actor_rollout_ref.rollout.log_prob_micro_batch_size,
+                                    )
+                                    padded_for_logp.meta_info.setdefault(
+                                        "use_dynamic_bsz",
+                                        self.config.actor_rollout_ref.rollout.get("log_prob_use_dynamic_bsz", False),
+                                    )
+                                    padded_for_logp.meta_info.setdefault(
+                                        "temperature", self.config.actor_rollout_ref.rollout.temperature
+                                    )
+                                    if padded_for_logp.meta_info.get("use_dynamic_bsz"):
+                                        padded_for_logp.meta_info["max_token_len"] = self.config.actor_rollout_ref.rollout.get(
+                                            "log_prob_max_token_len_per_gpu",
+                                            self.config.data.max_prompt_length,
+                                        )
+                                    out_logp_padded = self.actor_rollout_wg.compute_log_prob(padded_for_logp)
+                                    out_logp = unpad_dataproto(out_logp_padded, pad_size=pad_sz)
+                                    gen_batch_output = gen_batch_output.union(out_logp)
+                        elif not self.async_rollout_mode:
                             gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
                         else:
                             # vllm should set async_rollout_mode to enable async rollout
                             # sglang turns on async_rollout_mode by default
                             gen_batch_output = self.async_rollout_manager.generate_sequences(gen_batch)
-                        timing_raw.update(gen_batch_output.meta_info["timing"])
-                        gen_batch_output.meta_info.pop("timing", None)
+                        if "timing" in gen_batch_output.meta_info:
+                            timing_raw.update(gen_batch_output.meta_info["timing"])
+                            gen_batch_output.meta_info.pop("timing", None)
 
                     if self.config.algorithm.adv_estimator == AdvantageEstimator.REMAX:
                         with marked_timer("gen_max", timing_raw, color="purple"):
@@ -1164,6 +1250,8 @@ class RayPPOTrainer:
                         batch = batch.repeat(repeat_times=self.config.actor_rollout_ref.rollout.n, interleave=True)
 
                     batch = batch.union(gen_batch_output)
+                    if "token_level_rewards" in batch.batch and "token_level_scores" not in batch.batch:
+                        batch.batch["token_level_scores"] = batch.batch["token_level_rewards"].clone()
 
                     if "response_mask" not in batch.batch:
                         batch.batch["response_mask"] = compute_response_mask(batch)

@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # from . import gsm8k, math, prime_math, prime_code
+from .agentgym import compute_score as agentgym_compute_score
+from .gsm8k import compute_score as gsm8k_compute_score
+from .math import compute_score as math_compute_score
+from .math_dapo import compute_score as math_dapo_compute_score
+from .prime_math import compute_score as prime_math_compute_score
+from .prime_code import compute_score as prime_code_compute_score
+from .geo3k import compute_score as geo3k_compute_score
+from .search_r1_like_qa_em import compute_score as search_r1_like_qa_em_compute_score
 
 from verl.utils.import_utils import deprecated
 
@@ -129,6 +137,17 @@ def _default_compute_score(
     return default_compute_score(
         data_source, solution_str, ground_truth, extra_info, sandbox_fusion_url, concurrent_semaphore, memory_limit_mb
     )
+SUPPORTED_REWARD_SCORE_FNS = {
+    "gsm8k": gsm8k_compute_score,
+    "math": math_compute_score,
+    "math_dapo": math_dapo_compute_score,
+    "prime_math": prime_math_compute_score,
+    "prime_code": prime_code_compute_score,
+    "geo3k": geo3k_compute_score,
+    "search_r1_like_qa_em": search_r1_like_qa_em_compute_score,
+    "agentgym": agentgym_compute_score,
+}
 
 
-__all__ = ["default_compute_score"]
+
+__all__ = ["default_compute_score", "SUPPORTED_REWARD_SCORE_FNS"]

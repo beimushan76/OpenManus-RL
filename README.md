@@ -59,7 +59,7 @@ Code and dataset coming soon! Stay tuned!
 
 
 ## Current Team Members
-[@Kunlun Zhu](https://github.com/Kunlun-Zhu)(Ulab-UIUC), [@Jiayi Zhang](https://github.com/didiforgithub)(MetaGPT), [@Xinbing Liang](https://github.com/mannaandpoem),[@Xiangxin Zhou](https://github.com/zhouxiangxin1998), [@Yanfei Zhang](https://github.com/yanfei-zhang-95), [@Yingxuan Yang](https://github.com/zoe-yyx), [@Zeping Chen](https://github.com/rxdaozhang),[@Weijia Zhang](https://github.com/CharlieDreemur), [@Muxin Tian](https://github.com/realtmxi), [@Haofei Yu](https://github.com/lwaekfjlk)(Ulab-UIUC), [@Jinyu Xiang](https://github.com/XiangJinyu), [@Yifan Wu](https://github.com/Evanwu50020), [@Bowen Jin](https://github.com/PeterGriffinJin)
+[@Kunlun Zhu](https://github.com/Kunlun-Zhu)(Ulab-UIUC), [@Jiayi Zhang](https://github.com/didiforgithub)(MetaGPT), [@Xinbing Liang](https://github.com/mannaandpoem),[@Xiangxin Zhou](https://github.com/zhouxiangxin1998), [@Yanfei Zhang](https://github.com/yanfei-zhang-95), [@Yingxuan Yang](https://github.com/zoe-yyx), [@Zeping Chen](https://github.com/rxdaozhang),[@Weijia Zhang](https://github.com/CharlieDreemur), [@Muxin Tian](https://github.com/realtmxi), [@Haofei Yu](https://github.com/lwaekfjlk)(Ulab-UIUC), [@Jinyu Xiang](https://github.com/XiangJinyu), [@Yifan Wu](https://github.com/Evanwu50020), [@Bowen Jin](https://github.com/PeterGriffinJin), [@Blair Yang](https://github.com/blairyeung)
 
 ---
 
@@ -234,21 +234,34 @@ pip install wandb
 
 ## Environment Setup
 
-### WebShop Environment Setup as an example, more environment could be found on the agentgym
-
+### 1. Webshop
 To set up the WebShop environment for evaluation:
 
 ```bash
 # Change to the agentenv-webshop directory
-cd agentenv-webshop
+cd openmanus_rl/environments/env_package/webshop/webshop/
 
 # Create a new conda environment for WebShop
-conda env create -n webshop -f environment.yml
-conda activate webshop
+conda create -n agentenv_webshop python==3.10 -y
+conda activate agentenv_webshop
 
 # Setup the environment
-bash ./setup.sh
+bash ./setup.sh -d all
 ```
+### 2. ALFWorld
+
+```bash
+conda acitvate openmanus-rl
+pip3 install gymnasium==0.29.1
+pip3 install stable-baselines3==2.6.0
+pip install alfworld
+```
+
+Download PDDL & Game files and pre-trained MskRCNN detector (will be stored in `~/.cache/alfworld/`):
+```
+alfworld-download -f
+```
+Use `--extra` to download pre-trained checkpoints and seq2seq data.
 
 ### Launching the WebShop Server
 
@@ -274,10 +287,10 @@ From https://huggingface.co/datasets/CharlieDreemur/OpenManus-RL
 
 (3) Launch a local AgentGym server.
 
-(4) Run RL training (PPO) with Llama-3.2-3b-base.
+(4) Run RL training (PPO).
 ```bash
 conda activate openmanus-rl
-bash train_ppo.sh
+bash scripts/ppo_train/train_alfworld.sh
 ```
 
 
@@ -310,24 +323,27 @@ bash train_ppo.sh
 2. **Deepseekmath: Pushing the Limits of Mathematical Reasoning in Open Language Models**. [[paper](https://proceedings.neurips.cc/paper_files/paper/2022/file/b1efde53be364a73914f58805a001731-Paper-Conference.pdf)]
 3. **DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning**. [[paper](https://arxiv.org/pdf/2501.12948)]
 
-## **Benchmark:**
+## Benchmark:
 
 1. **AgentBench: Evaluating LLMs as Agents**. [paper](https://arxiv.org/abs/2308.03688)
-2. **OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments**. [paper](https://arxiv.org/abs/2404.07972)
-3. **AndroidWorld: A Dynamic Benchmarking Environment for Autonomous Agents**. [paper](https://openreview.net/forum?id=il5yUQsrjC)
-4. **WebShop: Towards Scalable Real-World Web Interaction with Autonomous Agents**. [paper](https://arxiv.org/pdf/2207.01206)
-5. **GAIA: a benchmark for General AI Assistants**. [paper](https://arxiv.org/abs/2311.12983)
-6. **TheAgentCompany: Benchmarking LLM Agents on Consequential Real World Tasks**. [paper](https://arxiv.org/abs/2412.14161)
+2. **WebShop: Towards Scalable Real-World Web Interaction with Autonomous Agents**. [paper](https://arxiv.org/pdf/2207.01206)
+3. **GAIA: a benchmark for General AI Assistants**. [paper](https://arxiv.org/abs/2311.12983)
+4. **ALFWorld: Aligning Text and Embodied Environments for Interactive Learning**. [paper](https://arxiv.org/abs/2010.03768)
 
-
-## Similar Code
+## Similar framework
 
 1. **RAGEN: Training Agents by Reinforcing Reasoning**. [[code](https://github.com/ZihanWang314/RAGEN)]
+2. **verl-agent**. [[code](https://github.com/langfengQ/verl-agent)]
+
+## Offline RL
+1. **D4RL: Datasets for Deep Data-Drive Reinforcement Learning**. [[paper](https://arxiv.org/abs/2004.07219)]
+2. **Offline Reforcement Learning with Implicit Q-Learning**. [[paper](https://arxiv.org/abs/2110.06169)]
+3. **Behavior Proximal Policy Optimization**. [[paper](https://arxiv.org/abs/2302.11312)]
 
 # Acknowledgement
 We extend our thanks to ulab-uiuc (https://ulab-uiuc.github.io/) and Openmanus (https://github.com/mannaandpoem/OpenManus)) team from MetaGPT for their support and shared knowledge. Their mission and community contributions help drive innovations like OpenManus forward.
 
-We also want to thank AgentGym(https://agentgym.github.io/) and Verl (https://github.com/volcengine/verl) for their opensource.
+We also want to gratefully thank Verl (https://github.com/volcengine/verl) and verl-agent(https://github.com/langfengQ/verl-agent) for their opensource.
 
 We welcome all developers who are interested in this project can reach out to (kunlunz2@illinois.edu)
 
